@@ -11,7 +11,7 @@ from astroML.datasets import fetch_sdss_spectrum
 from astroML.datasets.tools import query_plate_mjd_fiber, TARGET_GALAXY
 from astroML.dimensionality import iterative_pca
 import matplotlib.pyplot as plt
-#%%
+#%% Fetch spectra, correct for redshift and rebin wavelengths
 
 
 def fetch_and_shift_spectra(n_spectra,
@@ -28,7 +28,7 @@ def fetch_and_shift_spectra(n_spectra,
     # First query for the list of spectra to download
     plate, mjd, fiber = query_plate_mjd_fiber(n_spectra, primtarget,
                                               zlim[0], zlim[1])
-    print('plate:', plate,'mjd:', mjd, 'fiber:', fiber)
+    print('plate:', plate,'mjd:', mjd, 'fiber:', fiber)                    # Print identifiers to check against other script
 
     # Set up arrays to hold information gathered from the spectra
     spec_cln = np.zeros(n_spectra, dtype=np.int32)
@@ -63,9 +63,9 @@ def fetch_and_shift_spectra(n_spectra,
             i += 1
             continue
 
-#        spec_rebin = spec.restframe().rebin(new_coeff0, new_coeff1, Nlam)
+        spec_rebin = spec.restframe().rebin(new_coeff0, new_coeff1, Nlam) # Redshift corrected
 
-        spec_rebin = spec.rebin(new_coeff0, new_coeff1, Nlam)   # Not redshift corrected
+#        spec_rebin = spec.rebin(new_coeff0, new_coeff1, Nlam)   # Not redshift corrected
 
 
         if np.all(spec_rebin.spectrum == 0):
@@ -133,17 +133,56 @@ def spec_iterative_pca(outfile, n_ev=10, n_iter=20, norm='L2'):
 
 
 if __name__ == '__main__':
-    fetch_and_shift_spectra(1, 'spec1.npz')
-    spec_iterative_pca('spec1.npz')
+    fetch_and_shift_spectra(9, 'spec9.npz')
+    spec_iterative_pca('spec9.npz')
     
 #%% Load saved compressed file
 spectra_one = np.load('spec1.npz')
 
 #%% Create a wavelength array from wavelength coefficients and plot spectra
 n = np.arange(0, 1000, 1)
-spectra = spectra_one['spectra']
 bin_pos = spectra_one['coeff0'] + spectra_one['coeff1']*n
 
 plt.figure()
-plt.plot(bin_pos,spectra_one['spectra'][0])
+plt.plot(bin_pos,spectra_one['spectra'][0], label='Redshift included')
+#plt.plot(bin_pos,spectra_one['spectra'][0], label='Redshift corrected')
+
+plt.xlabel(r'log $\lambda (\AA)$')
+plt.ylabel('Flux')
+plt.legend()
+plt.show()
+
+#%% Load 9 spectra or 18 to get another set of 9
+spectra_nine = np.load('spec9.npz')
+#spectra_nine = np.load('spec18.npz')
+
+#%%  Nine spectra plot adapted from https://www.astroml.org/book_figures/chapter7/fig_spec_examples.html
+
+n = np.arange(0, 1000, 1)
+bin_pos = spectra_nine['coeff0'] + spectra_nine['coeff1']*n
+
+fig = plt.figure(figsize=(5, 4))
+
+fig.subplots_adjust(left=0.05, right=0.95, wspace=0.05,
+                    bottom=0.1, top=0.95, hspace=0.05)
+
+ncols = 3
+nrows = 3
+
+for i in range(ncols):
+    for j in range(nrows):
+        ax = fig.add_subplot(nrows, ncols, ncols * j + 1 + i)
+        ax.plot(bin_pos, spectra_nine['spectra'][ncols * j + i], '-k', lw=1)
+        #ax.set_xlim(3, 4)
+
+        ax.yaxis.set_major_formatter(plt.NullFormatter())
+        if j < nrows - 1:
+            ax.xaxis.set_major_formatter(plt.NullFormatter())
+        else:
+            plt.xlabel(r'log $\lambda (\AA)$')
+
+        ylim = ax.get_ylim()
+        dy = 0.05 * (ylim[1] - ylim[0])
+        ax.set_ylim(ylim[0] - dy, ylim[1] + dy)
+
 plt.show()

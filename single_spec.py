@@ -18,7 +18,7 @@ spec = fetch_sdss_spectrum(plate, mjd, fiber)
 
 #------------------------------------------------------------
 # Plot the resulting spectrum
-#plt.figure()
+plt.figure()
 ax = plt.axes()
 ax.plot(np.log10(spec.wavelength()), spec.spectrum, '-k', label='spectrum')
 ax.plot(np.log10(spec.wavelength()), spec.error, '-', color='gray', label='error')
