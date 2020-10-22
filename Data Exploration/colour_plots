@@ -1,0 +1,59 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from astropy.table import Table
+import itertools
+from collections import Counter
+
+# %% Read in data
+full = Table.read('full.fits', format = 'fits')
+
+# %% Check classes in full
+Counter(full['CLASS'])
+
+# %% Plot colour distribution g-r
+marker = itertools.cycle(('X', 'P', 'o', '^', 'D','*','s','p','v','H')) # from https://stackoverflow.com/questions/13091649/unique-plot-marker-for-each-plot-in-matplotlib
+plt.figure()
+for i in np.unique(full['CLASS']):
+    plt.plot(full[full['CLASS'] == i]['Z'],-2.5*np.log10(full[full['CLASS'] == i]['FLUX_R']/full[full['CLASS'] == i]['FLUX_G']), next(marker), label = i)
+plt.xlabel('Redshift z')
+plt.ylabel('g-r')
+plt.legend()
+plt.savefig('gr_classes.png')
+plt.show()
+
+# %% Plot colour distribution r-z
+plt.figure()
+for i in np.unique(full['CLASS']):
+    plt.plot(full[full['CLASS'] == i]['Z'],-2.5*np.log10(full[full['CLASS'] == i]['FLUX_Z']/full[full['CLASS'] == i]['FLUX_R']), next(marker), label = i)
+plt.xlabel('Redshift z')
+plt.ylabel('r-z')
+plt.legend()
+plt.savefig('rz_classes.png')
+plt.show()
+
+# %% Filter galaxies
+galaxy = full[full['CLASS'] == 'GALAXY']
+
+# %% Check subclasses in galaxy
+Counter(galaxy['SUBCLASS'])
+
+# %% Plot colour distribution g-r for galaxies
+plt.figure()
+for i in np.unique(galaxy['SUBCLASS']):
+    plt.plot(galaxy[galaxy['SUBCLASS'] == i]['Z'],-2.5*np.log10(galaxy[galaxy['SUBCLASS'] == i]['FLUX_R']/galaxy[galaxy['SUBCLASS'] == i]['FLUX_G']), next(marker), label = i)
+plt.xlabel('Redshift z')
+plt.ylabel('g-r')
+plt.legend()
+plt.savefig('gr_classes_galaxy.png')
+plt.show()
+
+# %% Plot colour distribution r-z for galaxies
+plt.figure()
+for i in np.unique(galaxy['SUBCLASS']):
+    plt.plot(galaxy[galaxy['SUBCLASS'] == i]['Z'],-2.5*np.log10(galaxy[galaxy['SUBCLASS'] == i]['FLUX_Z']/galaxy[galaxy['SUBCLASS'] == i]['FLUX_R']), next(marker), label = i)
+plt.xlabel('Redshift z')
+plt.ylabel('g-r')
+plt.legend()
+plt.savefig('rz_classes_galaxy.png')
+plt.show()
+
