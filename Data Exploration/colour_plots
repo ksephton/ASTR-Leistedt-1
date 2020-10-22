@@ -56,4 +56,3 @@ plt.ylabel('g-r')
 plt.legend()
 plt.savefig('rz_classes_galaxy.png')
 plt.show()
-
