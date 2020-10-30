@@ -63,9 +63,9 @@ def fetch_and_shift_spectra(n_spectra,
             i += 1
             continue
 
-        spec_rebin = spec.restframe().rebin(new_coeff0, new_coeff1, Nlam) # Redshift corrected
+#        spec_rebin = spec.restframe().rebin(new_coeff0, new_coeff1, Nlam) # Redshift corrected
 
-#        spec_rebin = spec.rebin(new_coeff0, new_coeff1, Nlam)   # Not redshift corrected
+        spec_rebin = spec.rebin(new_coeff0, new_coeff1, Nlam)   # Not redshift corrected
 
 
         if np.all(spec_rebin.spectrum == 0):
@@ -143,9 +143,10 @@ spectra_one = np.load('spec1.npz')
 n = np.arange(0, 1000, 1)
 bin_pos = spectra_one['coeff0'] + spectra_one['coeff1']*n
 
-plt.figure()
-plt.plot(bin_pos,spectra_one['spectra'][0], label='Redshift included')
-#plt.plot(bin_pos,spectra_one['spectra'][0], label='Redshift corrected')
+#plt.figure()
+#plt.plot(bin_pos,spectra_one['spectra'][0], label='Redshift included')
+#plt.plot(bin_pos,spectra_one['spectra'][0], label='Redshift corrected by restframe')
+#plt.plot(bin_pos-np.log10(1+spectra_one['z'][0]),spectra_one['spectra'][0], label='Redshift corrected by hand')
 
 plt.xlabel(r'log $\lambda (\AA)$')
 plt.ylabel('Flux')
@@ -173,6 +174,7 @@ for i in range(ncols):
     for j in range(nrows):
         ax = fig.add_subplot(nrows, ncols, ncols * j + 1 + i)
         ax.plot(bin_pos, spectra_nine['spectra'][ncols * j + i], '-k', lw=1)
+#        ax.plot(bin_pos, spectra_nine['spectra'][9 + ncols * j + i], '-k', lw=1)
         #ax.set_xlim(3, 4)
 
         ax.yaxis.set_major_formatter(plt.NullFormatter())
@@ -186,3 +188,17 @@ for i in range(ncols):
         ax.set_ylim(ylim[0] - dy, ylim[1] + dy)
 
 plt.show()
+
+#%%
+n = np.arange(0, 1000, 1)
+bin_pos = spectra_nine['coeff0'] + spectra_nine['coeff1']*n
+
+#plt.figure()
+plt.plot(bin_pos,spectra_nine['spectra'][4], label='Redshift corrected')
+#plt.plot(bin_pos,spectra_nine['spectra'][4], label='Redshift included')
+
+plt.xlabel(r'log $\lambda (\AA)$')
+plt.ylabel('Flux')
+plt.legend()
+plt.show()
+
