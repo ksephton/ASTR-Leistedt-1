@@ -139,14 +139,18 @@ if __name__ == '__main__':
 #%% Load saved compressed file
 spectra_one = np.load('spec1.npz')
 
+#%%
+spectra_one = np.load('spec9.npz')
+
+
 #%% Create a wavelength array from wavelength coefficients and plot spectra
 n = np.arange(0, 1000, 1)
 bin_pos = spectra_one['coeff0'] + spectra_one['coeff1']*n
 
 #plt.figure()
-#plt.plot(bin_pos,spectra_one['spectra'][0], label='Redshift included')
-#plt.plot(bin_pos,spectra_one['spectra'][0], label='Redshift corrected by restframe')
-#plt.plot(bin_pos-np.log10(1+spectra_one['z'][0]),spectra_one['spectra'][0], label='Redshift corrected by hand')
+#plt.plot(bin_pos,spectra_one['spectra'][4], label='Redshift included')
+#plt.plot(bin_pos,spectra_one['spectra'][4], label='Redshift corrected by restframe')
+plt.plot(bin_pos-np.log10(1+spectra_one['z'][4]),spectra_one['spectra'][4], label='Redshift corrected by hand')
 
 plt.xlabel(r'log $\lambda (\AA)$')
 plt.ylabel('Flux')
@@ -155,7 +159,9 @@ plt.show()
 
 #%% Load 9 spectra or 18 to get another set of 9
 spectra_nine = np.load('spec9.npz')
-#spectra_nine = np.load('spec18.npz')
+
+#%%
+spectra_18 = np.load('spec18.npz')
 
 #%%  Nine spectra plot adapted from https://www.astroml.org/book_figures/chapter7/fig_spec_examples.html
 
@@ -201,4 +207,19 @@ plt.xlabel(r'log $\lambda (\AA)$')
 plt.ylabel('Flux')
 plt.legend()
 plt.show()
+
+#%%
+spec_11 = spectra_18['mask'][10]
+n = np.arange(0, 1000, 1)
+bin_pos = spectra_18['coeff0'] + spectra_18['coeff1']*n
+
+plt.figure()
+plt.plot(bin_pos,spec_11*3, label='Mask')
+plt.plot(bin_pos,spectra_18['spectra'][10], label='Spectra with redshift corrected')
+
+plt.xlabel(r'log $\lambda (\AA)$')
+plt.ylabel('Flux')
+plt.legend()
+plt.show()
+
 

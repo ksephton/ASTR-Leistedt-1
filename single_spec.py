@@ -12,7 +12,7 @@ import numpy as np
 # Fetch single spectrum
 plate = 1732
 mjd = 53501
-fiber = 156
+fiber = 174
 
 spec = fetch_sdss_spectrum(plate, mjd, fiber)
 
