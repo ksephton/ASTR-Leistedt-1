@@ -1,3 +1,4 @@
+# Extracted from https://github.com/scikit-learn/scikit-learn/blob/0fb307bf3/sklearn/decomposition/_pca.py#L112
 class PCA(_BasePCA):
     """Principal component analysis (PCA).
 
