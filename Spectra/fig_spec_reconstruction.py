@@ -37,29 +37,33 @@ setup_text_plots(fontsize=8, usetex=False)
 
 #------------------------------------------------------------
 # Download data
-data = sdss_corrected_spectra.fetch_sdss_corrected_spectra()
-spectra = sdss_corrected_spectra.reconstruct_spectra(data)
+data = np.load('spec4000.npz')
+spectra = data['spectra']
+# data = sdss_corrected_spectra.fetch_sdss_corrected_spectra()
+# spectra = sdss_corrected_spectra.reconstruct_spectra(data)
+
 wavelengths = sdss_corrected_spectra.compute_wavelengths(data)
 
 #------------------------------------------------------------
 # Compute PCA components
 
 # Eigenvalues can be computed using PCA as in the commented code below:
+# Have to use first for non-iterative
 
-# from sklearn.decomposition import PCA
-# pca = PCA()
-# pca.fit(spectra)
-# evals = pca.explained_variance_ratio_
-# evals_cs = evals.cumsum()
+from sklearn.decomposition import PCA
+pca = PCA()
+pca.fit(spectra)
+evals = pca.explained_variance_ratio_
+evals_cs = evals.cumsum()
 
 #  because the spectra have been reconstructed from masked values, this
 #  is not exactly correct in this case: we'll use the values computed
 #  in the file compute_sdss_pca.py
-evals = data['evals'] ** 2
-evals_cs = evals.cumsum()
-evals_cs /= evals_cs[-1]
-evecs = data['evecs']
-spec_mean = spectra.mean(0)
+# evals = data['evals'] ** 2
+# evals_cs = evals.cumsum()
+# evals_cs /= evals_cs[-1]        # Divide by total of the eigenvalues
+# evecs = data['evecs']
+# spec_mean = spectra.mean(0)
 
 #------------------------------------------------------------
 # Find the coefficients of a particular spectrum
@@ -68,8 +72,8 @@ coeff = np.dot(evecs, spec - spec_mean)
 
 #------------------------------------------------------------
 # Plot the sequence of reconstructions
-# fig = plt.figure(figsize=(5, 5))
-# fig.subplots_adjust(hspace=0, top=0.95, bottom=0.1, left=0.12, right=0.93)
+fig = plt.figure(figsize=(5, 5))
+fig.subplots_adjust(hspace=0, top=0.95, bottom=0.1, left=0.12, right=0.93)
 
 for i, n in enumerate([0, 4, 8, 20]):
     ax = fig.add_subplot(411 + i)
@@ -95,3 +99,11 @@ for i, n in enumerate([0, 4, 8, 20]):
 
 fig.axes[-1].set_xlabel(r'${\rm wavelength\ (\AA)}$')
 plt.show()
+
+#%%
+
+
+
+
+
+
