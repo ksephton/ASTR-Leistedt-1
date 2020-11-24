@@ -1,24 +1,65 @@
 # Recreating https://ogrisel.github.io/scikit-learn.org/sklearn-tutorial/tutorial/astronomy/dimensionality_reduction.html
+#%%
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn import preprocessing
 from sklearn.decomposition import PCA
+#%% Load full data set
+data = np.load('spec4000error.npz')
 
-# %% Load data (spec4000.npz saved from fetch_and_shift_spectra() in compute_sdss_pca.py)
-data = np.load('spec4000.npz')
+#%% Calculating wavlength grid from coefficients
 
-# %% Set X and wavelengths (from wavelength coefficients)
-X = data['spectra']
 log_wavelengths = data['coeff0'] + data['coeff1'] * np.arange(0, 1000, 1)
 wavelengths = [10**i for i in log_wavelengths]
 
-# %% Plot mean spectrum
-X_normal = preprocessing.normalize(X)
-mu = X_normal.mean(0)
-std = X_normal.std(0)
+#%% Selecting only galaxies (spec_cln = 2)
+
+galaxy_ind = data['spec_cln'] == 2
+X = data['spectra'][galaxy_ind]
+subclass = data['lineindex_cln'][galaxy_ind]
+z = data['z'][galaxy_ind]
+z_err = data['zerr'][galaxy_ind]
+spec_err = data['spec_err'][galaxy_ind]
+
+#%% Set any negative spikes in flux to zero and set the corresponding error to zero
+
+neg_ind = X <= 0.
+X[neg_ind] = 0.
+spec_err[neg_ind] = 0.
+
+#%% Set zero fluxes to NaN
+
+X_nonan = X.copy()
+zero_ind = X == 0.
+X[zero_ind] = np.NaN
+
+#%% Set all zero flux errors to NaN
+
+zero_err_ind = spec_err == 0.
+spec_err[zero_err_ind] = np.NaN
+
+#%% Normalise spectrum
+X_normal = preprocessing.normalize(X_nonan)
+X_norm_zeros = np.copy(X_normal)
+
+#%%
+plt.figure()
+plt.plot(wavelengths,X_normal[4])
+
+#%% Set all zero normalised fluxes to nan
+zero_norm_ind = X_normal == 0.
+X_normal[zero_norm_ind] = np.NaN
+
+#%% Plot mean spectrum
+mu = np.nanmean(X_normal, axis=0)
+std = np.nanstd(X_normal)
+#mu = X_norm_zeros.mean(0)
+#std = X_norm_zeros.std(0)
+#mean_err = np.nanmean(spec_err, axis=0) #need to normalise
 plt.figure()
 plt.plot(wavelengths, mu, color = 'black')
 plt.fill_between(wavelengths, mu - std, mu + std , color = 'lightgrey')
+#plt.fill_between(wavelengths, mu - mean_err, mu + mean_err , color = 'lightgrey')
 plt.xlim(wavelengths[0], wavelengths[-1])
 plt.ylim(0,0.06)
 plt.xlabel('Wavelength [$\AA$]')
