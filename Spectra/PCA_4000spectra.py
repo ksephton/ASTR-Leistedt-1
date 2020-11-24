@@ -39,7 +39,7 @@ zero_err_ind = spec_err == 0.
 spec_err[zero_err_ind] = np.NaN
 
 #%% Normalise spectrum
-X_normal = preprocessing.normalize(X_nonan)
+X_normal, norm = preprocessing.normalize(X_nonan, return_norm=True)
 X_norm_zeros = np.copy(X_normal)
 
 #%%
@@ -50,16 +50,21 @@ plt.plot(wavelengths,X_normal[4])
 zero_norm_ind = X_normal == 0.
 X_normal[zero_norm_ind] = np.NaN
 
+#%% Transform errors due to corresponding normalisation
+spec_err_T = np.transpose(spec_err)
+spec_err_norm_T = np.divide(spec_err_T,norm)
+spec_err_norm = np.transpose(spec_err_norm_T)
+
 #%% Plot mean spectrum
 mu = np.nanmean(X_normal, axis=0)
 std = np.nanstd(X_normal)
 #mu = X_norm_zeros.mean(0)
 #std = X_norm_zeros.std(0)
-#mean_err = np.nanmean(spec_err, axis=0) #need to normalise
+mean_err = np.nanmean(spec_err_norm, axis=0)
 plt.figure()
 plt.plot(wavelengths, mu, color = 'black')
-plt.fill_between(wavelengths, mu - std, mu + std , color = 'lightgrey')
-#plt.fill_between(wavelengths, mu - mean_err, mu + mean_err , color = 'lightgrey')
+#plt.fill_between(wavelengths, mu - std, mu + std , color = 'lightgrey')
+plt.fill_between(wavelengths, mu - mean_err, mu + mean_err , color = 'lightgrey')
 plt.xlim(wavelengths[0], wavelengths[-1])
 plt.ylim(0,0.06)
 plt.xlabel('Wavelength [$\AA$]')
@@ -67,7 +72,7 @@ plt.ylabel('Scaled flux')
 plt.title('Mean spectrum')
 plt.show()
 
-# %%
+#%%
 def PCA_fs(X,n_components=None):
     ''' PCA function adapted from https://www.askpython.com/python/examples/principal-component-analysis
     Input:
@@ -117,20 +122,21 @@ def PCA_fs(X,n_components=None):
      
     return X_reduced, evals, evecs
 
-# %% Apply PCA
+#%% Apply PCA
 pca = PCA(n_components=4)
-X_red = pca.fit_transform(X_normal)
+X_red = pca.fit_transform(X_norm_zeros)
 
 # X_red, evals,evecs = PCA_fs(X, n_components=4)
 
-# %%
+#%%
 plt.figure()
-plt.scatter(X_red[:, 0], X_red[:, 1], s=4, lw=0, vmin=2, vmax=6)
+plt.scatter(X_red[:, 0], X_red[:, 1], c = subclass, s=4, lw=0, vmin=2, vmax=6)
+plt.colorbar()
 plt.xlabel('coefficient 1')
 plt.ylabel('coefficient 2')
 plt.title('PCA projection of Spectra')
 
-# %%
+#%%
 plt.figure()
 l = plt.plot(wavelengths, pca.mean_ - 0.15)
 c = l[0].get_color()
