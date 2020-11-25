@@ -42,9 +42,10 @@ spec_err[zero_err_ind] = np.NaN
 X_normal, norm = preprocessing.normalize(X_nonan, return_norm=True)
 X_norm_zeros = np.copy(X_normal)
 
-#%%
+#%% Plot an example spectrum in the data
 plt.figure()
 plt.plot(wavelengths,X_normal[4])
+plt.show()
 
 #%% Set all zero normalised fluxes to nan
 zero_norm_ind = X_normal == 0.
@@ -82,7 +83,6 @@ def PCA_fs(X,n_components=None):
                   decrease in added variance %
     Returns:
     X_reduced: The dataset with redu
-
     '''
      
     #Step-1
@@ -126,17 +126,49 @@ def PCA_fs(X,n_components=None):
 pca = PCA(n_components=4)
 X_red = pca.fit_transform(X_norm_zeros)
 
-# X_red, evals,evecs = PCA_fs(X, n_components=4)
+# X_red, evals,evecs = PCA_fs(X_norm_zeros, n_components=4)
 
-#%%
+#%% Plot coefficients against each other
 plt.figure()
-plt.scatter(X_red[:, 0], X_red[:, 1], c = subclass, s=4, lw=0, vmin=2, vmax=6)
-plt.colorbar()
-plt.xlabel('coefficient 1')
-plt.ylabel('coefficient 2')
-plt.title('PCA projection of Spectra')
+plt.rc('xtick',labelsize=10)
+plt.rc('ytick',labelsize=10)
+plt.set_cmap('plasma')
 
-#%%
+ax1 = plt.subplot(3,3,1)
+scatter1 = ax1.scatter(X_red[:, 0], X_red[:, 1], c = subclass, s=4, lw=0, vmin=2, vmax=6)
+ax1.set_ylabel('Coeff 2', fontsize=20)
+
+ax2 = plt.subplot(3,3,4)
+ax2.scatter(X_red[:, 0], X_red[:, 2], c = subclass, s=4, lw=0, vmin=2, vmax=6)
+ax2.set_ylabel('Coeff 3', fontsize=20)
+
+ax3 = plt.subplot(3,3,5)
+ax3.scatter(X_red[:, 1], X_red[:, 2], c = subclass, s=4, lw=0, vmin=2, vmax=6)
+
+ax4 = plt.subplot(3,3,7)
+ax4.scatter(X_red[:, 0], X_red[:, 3], c = subclass, s=4, lw=0, vmin=2, vmax=6)
+ax4.set_xlabel('Coeff 1', fontsize=20)
+ax4.set_ylabel('Coeff 4', fontsize=20)
+
+ax5 = plt.subplot(3,3,8)
+ax5.scatter(X_red[:, 1], X_red[:, 3], c = subclass, s=4, lw=0, vmin=2, vmax=6)
+ax5.set_xlabel('Coeff 2', fontsize=20)
+
+ax6 = plt.subplot(3,3,9)
+ax6.scatter(X_red[:, 2], X_red[:, 3], c = subclass, s=4, lw=0, vmin=2, vmax=6)
+ax6.set_xlabel('Coeff 3', fontsize=20)
+
+plt.subplots_adjust(hspace=.0, wspace=.0)
+axs = np.array([ax1, ax2, ax3, ax4, ax5, ax6])
+for ax in axs.flat:
+    ax.label_outer()
+    
+ax1.legend(*scatter1.legend_elements(), bbox_to_anchor=(1.5, 1), title="Subclasses",
+                     fontsize=20, title_fontsize=20, markerscale=4)
+
+plt.show()
+
+#%% Plot the individual spectrum components
 plt.figure()
 l = plt.plot(wavelengths, pca.mean_ - 0.15)
 c = l[0].get_color()
@@ -161,4 +193,49 @@ plt.title('Mean Spectrum and Eigen-spectra')
 # plt.ylim(-0.2, 0.6)
 # plt.xlabel('wavelength (Angstroms)')
 # plt.ylabel('scaled flux + offset')
-# plt.title('Mean Spectrum and Eigen-spectra')
+# plt.title('Mean Spectrum and Eigen-spectra'
+
+#%% Plot variance explained by each component
+var = pca.explained_variance_ratio_
+cum_var = np.cumsum(var)
+plt.figure()
+plt.plot(np.array(range(1,pca.n_components_+1)), var, 'x', color='tab:blue', markersize=10)
+plt.plot(np.array(range(1,pca.n_components_+1)), var, color='tab:blue', label='Variance ratio')
+plt.plot(np.array(range(1,pca.n_components_+1)), cum_var, '+', color='tab:green', markersize=10)
+plt.plot(np.array(range(1,pca.n_components_+1)), cum_var, color='tab:green', label='Cumulative variance ratio')
+plt.xlabel('Number of principal components')
+plt.ylabel('Variance ratio')
+plt.xticks(np.array(range(1,pca.n_components_+1)))
+plt.legend()
+plt.show()
+# %% Define function for plotting individual spectra
+def reconstruct_spectra(spectra_num):
+    coeff = np.dot(pca.components_, X_norm_zeros[spectra_num] - pca.mean_)
+    fig = plt.figure()
+    for i, n in enumerate(range(5)):
+        ax = fig.add_subplot(511 + i)
+        ax.plot(wavelengths, X_norm_zeros[spectra_num], '-', c='gray')
+        ax.plot(wavelengths, pca.mean_ + np.dot(coeff[:n], pca.components_[:n]), '-k')
+    
+        if i < 3:
+            ax.xaxis.set_major_formatter(plt.NullFormatter())
+    
+        ax.set_ylabel('flux', fontsize=20)
+    
+        if n == 0:
+            text = "mean"
+        elif n == 1:
+            text = "mean + 1 component\n"
+            text += r"$(\sigma^2_{tot}$ ratio $= %.2f)$" % cum_var[n - 1]
+        else:
+            text = "mean + %i components\n" % n
+            text += r"$(\sigma^2_{tot}$ ratio $= %.2f)$" % cum_var[n - 1]
+    
+        ax.text(0.02, 0.93, text, ha='left', va='top', transform=ax.transAxes)
+    
+    fig.axes[-1].set_xlabel(r'${\rm wavelength\ (\AA)}$', fontsize=20)
+    fig.suptitle(f'Reconstruction of Spectra {spectra_num}', fontsize=20)
+    plt.show()
+# %% Plot a random spectra
+spectra_num = np.random.randint(0, len(X))
+reconstruct_spectra(spectra_num)
