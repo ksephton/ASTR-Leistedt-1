@@ -214,8 +214,8 @@ def reconstruct_spectra(spectra_num):
     fig = plt.figure()
     for i, n in enumerate(range(5)):
         ax = fig.add_subplot(511 + i)
-        ax.plot(wavelengths, X_norm_zeros[spectra_num], '-', c='gray')
-        ax.plot(wavelengths, pca.mean_ + np.dot(coeff[:n], pca.components_[:n]), '-k')
+        ax.plot(wavelengths, X_norm_zeros[spectra_num], '-', c='gray', label='Original')
+        ax.plot(wavelengths, pca.mean_ + np.dot(coeff[:n], pca.components_[:n]), '-k', label='Reconstruction')
     
         if i < 3:
             ax.xaxis.set_major_formatter(plt.NullFormatter())
@@ -233,6 +233,7 @@ def reconstruct_spectra(spectra_num):
     
         ax.text(0.02, 0.93, text, ha='left', va='top', transform=ax.transAxes)
     
+    fig.axes[-1].legend()    
     fig.axes[-1].set_xlabel(r'${\rm wavelength\ (\AA)}$', fontsize=20)
     fig.suptitle(f'Reconstruction of Spectra {spectra_num}', fontsize=20)
     plt.show()
