@@ -150,9 +150,21 @@ plt.legend()
 plt.show()
 # %% Define function for plotting individual spectra
 def reconstruct_spectra(spectra_num, components=4,plot_fig=True):
+    '''
+    Returns reconstruction of a spectrum using the total number of components in the reduced dataset and plots the reconstructed
+    spectrum and the original spectrum on the same figure.
+    
+    Input:
+    spectra_num: Index of desired spectrum
+    components: Number of components from reduced dataset to use in reconstruction. Default is 4.
+    plot_fig: If plot_fig=True, a plot of the reconstruction and the original spectrum will be shown, with subplots showing an
+              increasing number of components used in the reconstruction
+    
+    Returns: 1D array of the reconstructed spectrum 
+    '''
     coeff = np.dot(pca.components_, X_norm_zeros[spectra_num] - pca.mean_)
     if plot_fig == True:
-        fig = plt.figure()
+        fig = plt.figure(figsize=(20,10))
         for i, n in enumerate(range(components+1)):
             ax = fig.add_subplot(511 + i)
             ax.plot(wavelengths, X_norm_zeros[spectra_num], '-', c='gray', label='Original')
@@ -177,8 +189,7 @@ def reconstruct_spectra(spectra_num, components=4,plot_fig=True):
         fig.axes[-1].set_xlabel(r'${\rm wavelength\ (\AA)}$', fontsize=20)
         fig.suptitle(f'Reconstruction of Spectra {spectra_num} (lineindex_cln=={subclass[spectra_num]})', fontsize=20)
         plt.show()
-    return pca.mean_ + np.dot(coeff[:components], pca.components_[:components])
-# %% Plot a random spectra
+    return pca.mean_ + np.dot(coeff[:components], pca.components_[:components])# %% Plot a random spectra
 spectra_num = np.random.randint(0, len(X))
 reconstruct_spectra(spectra_num)
 
@@ -202,7 +213,7 @@ chi_arr, _ = chisquare_all(X_norm_zeros)
 
 # %% Plot chi-squared values
 # Code adapted from https://towardsdatascience.com/advanced-histogram-using-python-bceae288e715
-fig, ax = plt.subplots()
+fig, ax = plt.subplots(figsize=(20,10))
 counts, bins, patches = ax.hist(chi_arr, bins=20)
 
 # Set the ticks to be at the edges of the bins.
@@ -232,6 +243,7 @@ for i in range(len(X_norm_zeros)):
 reconstruction_table = Table([np.arange(len(X_norm_zeros)), subclass, X_norm_zeros, reconstruction_arr],
                                         names=('index', 'subclass', 'original', 'reconstruction'),)
 
+print(reconstruction_table[:5])
 # %% Filter reconstructions by subclass
 absorption = reconstruction_table[reconstruction_table['subclass']==2]
 normal = reconstruction_table[reconstruction_table['subclass']==3]
@@ -240,16 +252,16 @@ narrow_qso = reconstruction_table[reconstruction_table['subclass']==5]
 
 # %% Plot reconstruction for one example from each subclass
 print('2: Absorption galaxy')
-reconstruct_spectra(np.random.choice(absorption['index']))
+_ = reconstruct_spectra(np.random.choice(absorption['index']))
 print('3: Normal galaxy')
-reconstruct_spectra(np.random.choice(normal['index']))
+_ = reconstruct_spectra(np.random.choice(normal['index']))
 print('4: Emission galaxy')
-reconstruct_spectra(np.random.choice(emission['index']))
+_ = reconstruct_spectra(np.random.choice(emission['index']))
 print('5: Narrow line QSO')
-reconstruct_spectra(np.random.choice(narrow_qso['index']))
+_ = reconstruct_spectra(np.random.choice(narrow_qso['index']))
 
 # %% Plot chi-squared value histograms for each subclass
-plt.figure()
+plt.figure(figsize=(20,10))
 ax1 = plt.subplot(2,2,1)
 counts, bins, patches = ax1.hist(chi_arr[subclass == 2], bins=20)
 # ax1.set_xticks(bins.round(2))
