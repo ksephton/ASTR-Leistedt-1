@@ -240,8 +240,8 @@ reconstruction_arr = np.zeros(X_norm_zeros.shape)
 for i in range(len(X_norm_zeros)):
     reconstruction_arr[i] = reconstruct_spectra(i, plot_fig=False)
 
-reconstruction_table = Table([np.arange(len(X_norm_zeros)), subclass, X_norm_zeros, reconstruction_arr],
-                                        names=('index', 'subclass', 'original', 'reconstruction'),)
+reconstruction_table = Table([np.arange(len(X_norm_zeros)), subclass, X_norm_zeros, reconstruction_arr, chi_arr],
+                                        names=('index', 'subclass', 'original', 'reconstruction', 'chi_squared_stat'),)
 
 print(reconstruction_table[:5])
 # %% Filter reconstructions by subclass
