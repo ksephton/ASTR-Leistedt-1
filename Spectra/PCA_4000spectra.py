@@ -251,14 +251,21 @@ emission = reconstruction_table[reconstruction_table['subclass']==4]
 narrow_qso = reconstruction_table[reconstruction_table['subclass']==5]
 
 # %% Plot reconstruction for one example from each subclass
-print('2: Absorption galaxy')
-_ = reconstruct_spectra(np.random.choice(absorption['index']))
-print('3: Normal galaxy')
-_ = reconstruct_spectra(np.random.choice(normal['index']))
-print('4: Emission galaxy')
-_ = reconstruct_spectra(np.random.choice(emission['index']))
-print('5: Narrow line QSO')
-_ = reconstruct_spectra(np.random.choice(narrow_qso['index']))
+randnum = np.random.choice(absorption['index'])
+print(f"2: Absorption galaxy {randnum} (chi-squared stat:{chi_arr[randnum]})")
+_ = reconstruct_spectra(randnum)
+
+randnum = np.random.choice(normal['index'])
+print(f"3: Normal galaxy {randnum} (chi-squared stat:{chi_arr[randnum]})")
+_ = reconstruct_spectra(randnum)
+
+randnum = np.random.choice(emission['index'])
+print(f"4: Emission galaxy {randnum} (chi-squared stat:{chi_arr[randnum]})")
+_ = reconstruct_spectra(randnum)
+
+randnum = np.random.choice(narrow_qso['index'])
+print(f"5: Narrow line QSO {randnum} (chi-squared stat:{chi_arr[randnum]})")
+_ = reconstruct_spectra(randnum)
 
 # %% Plot chi-squared value histograms for each subclass
 plt.figure(figsize=(20,10))
