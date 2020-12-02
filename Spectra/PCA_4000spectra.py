@@ -4,6 +4,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn import preprocessing
 from sklearn.decomposition import PCA
+from scipy.stats import chisquare
+from astropy.table import Table
+
 #%% Load full data set
 data = np.load('spec4000error.npz')
 
@@ -62,71 +65,21 @@ std = np.nanstd(X_normal, axis=0)
 #mu = X_norm_zeros.mean(0)
 #std = X_norm_zeros.std(0)
 mean_err = np.nanmean(spec_err_norm, axis=0)
-plt.figure()
-plt.plot(wavelengths, mu, color = 'black')
-plt.fill_between(wavelengths, mu - std, mu + std , color = 'lightgrey')
-plt.fill_between(wavelengths, mu - mean_err, mu + mean_err , color = 'grey')
+plt.figure(figsize=(20,10))
+plt.plot(wavelengths, mu, color = 'black', label='Mean spectrum')
+plt.fill_between(wavelengths, mu - std, mu + std , color = 'lightgrey', label='Standard deviation')
+plt.fill_between(wavelengths, mu - mean_err, mu + mean_err , color = 'grey', label = 'Mean error from SDSS')
 plt.xlim(wavelengths[0], wavelengths[-1])
 plt.ylim(0,0.06)
 plt.xlabel('Wavelength [$\AA$]')
 plt.ylabel('Scaled flux')
 plt.title('Mean spectrum')
+plt.legend()
 plt.show()
-
-#%%
-def PCA_fs(X,n_components=None):
-    ''' PCA function adapted from https://www.askpython.com/python/examples/principal-component-analysis
-    Input:
-    X: numpy nd.array
-    n_components: Denotes the number of principal components; can be integer or None with default as n_components = None.
-                  If None, function will automatically the optimal number of principal components based by finding the maximum
-                  decrease in added variance %
-    Returns:
-    X_reduced: The dataset with redu
-    '''
-     
-    #Step-1
-    X_meaned = X - np.mean(X , axis = 0)
-     
-    #Step-2
-    S = np.cov(X_meaned , rowvar = False)
-     
-    #Step-3
-    evals , evecs = np.linalg.eigh(S)
-    evals = np.flip(evals)
-    evecs = np.flip(evecs, axis = 1)
-     
-    #Step-4
-    var = evals/np.sum(evals)
-    cum_var = np.cumsum(var)
-    
-    plt.figure()
-    plt.plot(np.array(range(1,len(evals)+1)), var, label = 'Variance %', color = 'tab:blue')
-    plt.plot(np.array(range(1,len(evals)+1)), var, 'x', color = 'tab:blue', markersize = 10)
-    plt.plot(np.array(range(1,len(evals)+1)), cum_var, label = 'Cumulative variance %', color = 'tab:green')
-    plt.plot(np.array(range(1,len(evals)+1)), cum_var, '+', color = 'tab:green', markersize = 10)
-    plt.xlabel('Number of principal components')
-    plt.ylabel('Variance %')
-    plt.xticks(np.array(range(1,len(evals)+1)))
-    plt.legend()
-    plt.show()
-    
-    var_diff = [var[i] - var[i+1] for i in range(len(var)-1)]
-    if n_components == None:
-        n_components = var_diff.index(max(var_diff))+1
-        print('Optimal number of principal components:', n_components)
-    
-    #Step-5
-    evecs_subset = evecs[:,0:n_components]
-    X_reduced = np.dot(evecs_subset.transpose(), X_meaned.transpose()).transpose()
-     
-    return X_reduced, evals, evecs
 
 #%% Apply PCA
 pca = PCA(n_components=4)
 X_red = pca.fit_transform(X_norm_zeros)
-
-# X_red, evals,evecs = PCA_fs(X_norm_zeros, n_components=4)
 
 #%% Plot coefficients against each other
 plt.figure()
@@ -182,19 +135,6 @@ plt.xlabel('wavelength (Angstroms)')
 plt.ylabel('scaled flux + offset')
 plt.title('Mean Spectrum and Eigen-spectra')
 
-# plt.figure()
-# l = plt.plot(wavelengths, X_normal.mean(axis=0) - 0.15)
-# c = l[0].get_color()
-# plt.text(7000, -0.16, "mean", color=c)
-# for i in range(4):
-#     l = plt.plot(wavelengths, evecs[i] + 0.15 * i)
-#     c = l[0].get_color()
-#     plt.text(7000, -0.01 + 0.15 * i, "component %i" % (i + 1), color=c)
-# plt.ylim(-0.2, 0.6)
-# plt.xlabel('wavelength (Angstroms)')
-# plt.ylabel('scaled flux + offset')
-# plt.title('Mean Spectrum and Eigen-spectra'
-
 #%% Plot variance explained by each component
 var = pca.explained_variance_ratio_
 cum_var = np.cumsum(var)
@@ -209,34 +149,166 @@ plt.xticks(np.array(range(1,pca.n_components_+1)))
 plt.legend()
 plt.show()
 # %% Define function for plotting individual spectra
-def reconstruct_spectra(spectra_num):
+def reconstruct_spectra(spectra_num, components=4,plot_fig=True):
     coeff = np.dot(pca.components_, X_norm_zeros[spectra_num] - pca.mean_)
-    fig = plt.figure()
-    for i, n in enumerate(range(5)):
-        ax = fig.add_subplot(511 + i)
-        ax.plot(wavelengths, X_norm_zeros[spectra_num], '-', c='gray', label='Original')
-        ax.plot(wavelengths, pca.mean_ + np.dot(coeff[:n], pca.components_[:n]), '-k', label='Reconstruction')
-    
-        if i < 3:
-            ax.xaxis.set_major_formatter(plt.NullFormatter())
-    
-        ax.set_ylabel('flux', fontsize=20)
-    
-        if n == 0:
-            text = "mean"
-        elif n == 1:
-            text = "mean + 1 component\n"
-            text += r"$(\sigma^2_{tot}$ ratio $= %.2f)$" % cum_var[n - 1]
-        else:
-            text = "mean + %i components\n" % n
-            text += r"$(\sigma^2_{tot}$ ratio $= %.2f)$" % cum_var[n - 1]
-    
-        ax.text(0.02, 0.93, text, ha='left', va='top', transform=ax.transAxes)
-    
-    fig.axes[-1].legend()    
-    fig.axes[-1].set_xlabel(r'${\rm wavelength\ (\AA)}$', fontsize=20)
-    fig.suptitle(f'Reconstruction of Spectra {spectra_num}', fontsize=20)
-    plt.show()
+    if plot_fig == True:
+        fig = plt.figure()
+        for i, n in enumerate(range(components+1)):
+            ax = fig.add_subplot(511 + i)
+            ax.plot(wavelengths, X_norm_zeros[spectra_num], '-', c='gray', label='Original')
+            ax.plot(wavelengths, pca.mean_ + np.dot(coeff[:n], pca.components_[:n]), '-k', label='Reconstruction')
+        
+            if i < 3:
+                ax.xaxis.set_major_formatter(plt.NullFormatter())
+        
+            ax.set_ylabel('flux', fontsize=20)
+        
+            if n == 0:
+                text = "mean"
+            elif n == 1:
+                text = "mean + 1 component\n"
+                text += r"$(\sigma^2_{tot}$ ratio $= %.2f)$" % cum_var[n - 1]
+            else:
+                text = "mean + %i components\n" % n
+                text += r"$(\sigma^2_{tot}$ ratio $= %.2f)$" % cum_var[n - 1]
+        
+            ax.text(0.02, 0.93, text, ha='left', va='top', transform=ax.transAxes)
+        fig.axes[-1].legend()    
+        fig.axes[-1].set_xlabel(r'${\rm wavelength\ (\AA)}$', fontsize=20)
+        fig.suptitle(f'Reconstruction of Spectra {spectra_num} (lineindex_cln=={subclass[spectra_num]})', fontsize=20)
+        plt.show()
+    return pca.mean_ + np.dot(coeff[:components], pca.components_[:components])
 # %% Plot a random spectra
 spectra_num = np.random.randint(0, len(X))
 reconstruct_spectra(spectra_num)
+
+# %% Find chi-squared values of all spectra
+def chisquare_no_zeros(reconstruction, original):
+    original_no_zeros = original[original != 0.0]
+    chi = chisquare(reconstruction[original!=0.0], original_no_zeros)
+    return chi
+
+def chisquare_all(original_arr):
+    chi_arr = np.array([])
+    p_arr = np.array([])
+    for i in range(len(original_arr)):
+        reconstruction = reconstruct_spectra(i,plot_fig=False)
+        chi_test,chi_p = chisquare_no_zeros(reconstruction, original_arr[i])
+        chi_arr = np.append(chi_arr, chi_test)
+        p_arr = np.append(p_arr, chi_p)
+    return chi_arr, p_arr
+
+chi_arr, _ = chisquare_all(X_norm_zeros)
+
+# %% Plot chi-squared values
+# Code adapted from https://towardsdatascience.com/advanced-histogram-using-python-bceae288e715
+fig, ax = plt.subplots()
+counts, bins, patches = ax.hist(chi_arr, bins=20)
+
+# Set the ticks to be at the edges of the bins.
+ax.set_xticks(bins.round(2))
+        
+# Calculate bar centre to display the count of data points and %
+bin_x_centers = 0.5 * np.diff(bins) + bins[:-1]
+bin_y_centers = ax.get_yticks()[1] * 0.25
+
+# Display the the count of data points and % for each bar in histogram
+for i in range(len(bins)-1):
+    bin_label = "{0:,}".format(counts[i]) + "\n({0:,.2f}%)".format((counts[i]/counts.sum())*100)
+    plt.text(bin_x_centers[i], bin_y_centers, bin_label, horizontalalignment='center')    
+
+ax.annotate('Counts\nPercentage', xy=(0.9,0.9), xycoords='axes fraction', 
+            horizontalalignment='center', fontsize=15, bbox=dict(boxstyle="round", fc="white"))
+plt.xlabel("$\chi^2$ test statistic", fontsize=20)
+plt.ylabel('Counts',fontsize=20)
+
+plt.show()
+
+# %% Make an Astropy Table to store reconstruction data
+reconstruction_arr = np.zeros(X_norm_zeros.shape)
+for i in range(len(X_norm_zeros)):
+    reconstruction_arr[i] = reconstruct_spectra(i, plot_fig=False)
+
+reconstruction_table = Table([np.arange(len(X_norm_zeros)), subclass, X_norm_zeros, reconstruction_arr],
+                                        names=('index', 'subclass', 'original', 'reconstruction'),)
+
+# %% Filter reconstructions by subclass
+absorption = reconstruction_table[reconstruction_table['subclass']==2]
+normal = reconstruction_table[reconstruction_table['subclass']==3]
+emission = reconstruction_table[reconstruction_table['subclass']==4]
+narrow_qso = reconstruction_table[reconstruction_table['subclass']==5]
+
+# %% Plot reconstruction for one example from each subclass
+print('2: Absorption galaxy')
+reconstruct_spectra(np.random.choice(absorption['index']))
+print('3: Normal galaxy')
+reconstruct_spectra(np.random.choice(normal['index']))
+print('4: Emission galaxy')
+reconstruct_spectra(np.random.choice(emission['index']))
+print('5: Narrow line QSO')
+reconstruct_spectra(np.random.choice(narrow_qso['index']))
+
+# %% Plot chi-squared value histograms for each subclass
+plt.figure()
+ax1 = plt.subplot(2,2,1)
+counts, bins, patches = ax1.hist(chi_arr[subclass == 2], bins=20)
+# ax1.set_xticks(bins.round(2))
+# bin_x_centers = 0.5 * np.diff(bins) + bins[:-1]
+# bin_y_centers = ax1.get_yticks()[1] * 0.25
+# for i in range(len(bins)-1):
+#     bin_label = "{0:,}".format(counts[i]) + "\n({0:,.2f}%)".format((counts[i]/counts.sum())*100)
+#     ax1.text(bin_x_centers[i], bin_y_centers, bin_label, horizontalalignment='center')    
+
+# ax1.annotate('Counts\nPercentage', xy=(0.9,0.9), xycoords='axes fraction', 
+#             horizontalalignment='center', fontsize=15, bbox=dict(boxstyle="round", fc="white"))
+ax1.set_xlabel("$\chi^2$ test statistic", fontsize=20)
+ax1.set_ylabel('Counts',fontsize=20)
+ax1.set_title(f'2: Absorption galaxies ({len(chi_arr[subclass == 2])}/{len(subclass)})', fontsize=20)
+
+ax2 = plt.subplot(2,2,2)
+counts, bins, patches = ax2.hist(chi_arr[subclass == 3], bins=20)
+# ax2.set_xticks(bins.round(2))
+# bin_x_centers = 0.5 * np.diff(bins) + bins[:-1]
+# bin_y_centers = ax2.get_yticks()[1] * 0.25
+# for i in range(len(bins)-1):
+#     bin_label = "{0:,}".format(counts[i]) + "\n({0:,.2f}%)".format((counts[i]/counts.sum())*100)
+#     ax2.text(bin_x_centers[i], bin_y_centers, bin_label, horizontalalignment='center')    
+
+# ax2.annotate('Counts\nPercentage', xy=(0.9,0.9), xycoords='axes fraction', 
+#             horizontalalignment='center', fontsize=15, bbox=dict(boxstyle="round", fc="white"))
+ax2.set_xlabel("$\chi^2$ test statistic", fontsize=20)
+ax2.set_ylabel('Counts',fontsize=20)
+ax2.set_title(f'3: Normal galaxies ({len(chi_arr[subclass == 3])}/{len(subclass)})', fontsize=20)
+
+ax3 = plt.subplot(2,2,3)
+counts, bins, patches = ax3.hist(chi_arr[subclass == 4], bins=20)
+# ax3.set_xticks(bins.round(2))
+# bin_x_centers = 0.5 * np.diff(bins) + bins[:-1]
+# bin_y_centers = ax3.get_yticks()[1] * 0.25
+# for i in range(len(bins)-1):
+#     bin_label = "{0:,}".format(counts[i]) + "\n({0:,.2f}%)".format((counts[i]/counts.sum())*100)
+#     ax3.text(bin_x_centers[i], bin_y_centers, bin_label, horizontalalignment='center')    
+
+# ax3.annotate('Counts\nPercentage', xy=(0.9,0.9), xycoords='axes fraction', 
+#             horizontalalignment='center', fontsize=15, bbox=dict(boxstyle="round", fc="white"))
+ax3.set_xlabel("$\chi^2$ test statistic", fontsize=20)
+ax3.set_ylabel('Counts',fontsize=20)
+ax3.set_title(f'4: Emission line galaxies ({len(chi_arr[subclass == 4])}/{len(subclass)})', fontsize=20)
+
+ax4 = plt.subplot(2,2,4)
+counts, bins, patches = ax4.hist(chi_arr[subclass == 5], bins=20)
+# ax4.set_xticks(bins.round(2))
+# bin_x_centers = 0.5 * np.diff(bins) + bins[:-1]
+# bin_y_centers = ax4.get_yticks()[1] * 0.25
+# for i in range(len(bins)-1):
+#     bin_label = "{0:,}".format(counts[i]) + "\n({0:,.2f}%)".format((counts[i]/counts.sum())*100)
+#     ax4.text(bin_x_centers[i], bin_y_centers, bin_label, horizontalalignment='center')    
+
+# ax4.annotate('Counts\nPercentage', xy=(0.9,0.9), xycoords='axes fraction', 
+#             horizontalalignment='center', fontsize=15, bbox=dict(boxstyle="round", fc="white"))
+ax4.set_xlabel("$\chi^2$ test statistic", fontsize=20)
+ax4.set_ylabel('Counts',fontsize=20)
+ax4.set_title(f'5: Narrow-line QSO ({len(chi_arr[subclass == 5])}/{len(subclass)})', fontsize=20)
+
+plt.subplots_adjust(hspace=.5, wspace=.2)
+plt.show()
