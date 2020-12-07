@@ -4,7 +4,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn import preprocessing
 from sklearn.decomposition import PCA
-from scipy.stats import chisquare
 from astropy.table import Table
 
 #%% Load full data set
@@ -149,67 +148,107 @@ plt.xticks(np.array(range(1,pca.n_components_+1)))
 plt.legend()
 plt.show()
 # %% Define function for plotting individual spectra
-def reconstruct_spectra(spectra_num, components=4,plot_fig=True):
+def reconstruct_spectra(spectra_num, components=4,plot_fig=True, plot_all=False):
     '''
     Returns reconstruction of a spectrum using the total number of components in the reduced dataset and plots the reconstructed
     spectrum and the original spectrum on the same figure.
     
     Input:
     spectra_num: Index of desired spectrum
-    components: Number of components from reduced dataset to use in reconstruction. Default is 4.
+    components: Number of components from reduced dataset to use in reconstruction. Default is 4
     plot_fig: If plot_fig=True, a plot of the reconstruction and the original spectrum will be shown, with subplots showing an
               increasing number of components used in the reconstruction
+    plot_all: If plot_all=True, subplots showing the reconstruction with each additional component will be plotted. Otherwise only
+              the final reconstruction with all PCA components is plotted. Default is plot_all=False
     
     Returns: 1D array of the reconstructed spectrum 
     '''
     coeff = np.dot(pca.components_, X_norm_zeros[spectra_num] - pca.mean_)
     if plot_fig == True:
         fig = plt.figure(figsize=(20,10))
-        for i, n in enumerate(range(components+1)):
-            ax = fig.add_subplot(511 + i)
-            ax.plot(wavelengths, X_norm_zeros[spectra_num], '-', c='gray', label='Original')
-            ax.plot(wavelengths, pca.mean_ + np.dot(coeff[:n], pca.components_[:n]), '-k', label='Reconstruction')
-        
-            if i < 3:
-                ax.xaxis.set_major_formatter(plt.NullFormatter())
-        
-            ax.set_ylabel('flux', fontsize=20)
-        
-            if n == 0:
-                text = "mean"
-            elif n == 1:
-                text = "mean + 1 component\n"
-                text += r"$(\sigma^2_{tot}$ ratio $= %.2f)$" % cum_var[n - 1]
-            else:
-                text = "mean + %i components\n" % n
-                text += r"$(\sigma^2_{tot}$ ratio $= %.2f)$" % cum_var[n - 1]
-        
-            ax.text(0.02, 0.93, text, ha='left', va='top', transform=ax.transAxes)
-        fig.axes[-1].legend()    
-        fig.axes[-1].set_xlabel(r'${\rm wavelength\ (\AA)}$', fontsize=20)
-        fig.suptitle(f'Reconstruction of Spectra {spectra_num} (lineindex_cln=={subclass[spectra_num]})', fontsize=20)
+        if plot_all == True:
+            for i, n in enumerate(range(components+1)):
+                ax = fig.add_subplot(511 + i)
+                ax.plot(wavelengths, X_norm_zeros[spectra_num], '-', c='gray', label='Original')
+                ax.plot(wavelengths, pca.mean_ + np.dot(coeff[:n], pca.components_[:n]), '-k', label='Reconstruction')
+            
+                if i < 3:
+                    ax.xaxis.set_major_formatter(plt.NullFormatter())
+            
+                ax.set_ylabel('Flux', fontsize=20)
+            
+                if n == 0:
+                    text = "mean"
+                elif n == 1:
+                    text = "mean + 1 component\n"
+                    text += r"$(\sigma^2_{tot}$ ratio $= %.2f)$" % cum_var[n - 1]
+                else:
+                    text = "mean + %i components\n" % n
+                    text += r"$(\sigma^2_{tot}$ ratio $= %.2f)$" % cum_var[n - 1]
+            
+                ax.text(0.02, 0.93, text, ha='left', va='top', transform=ax.transAxes)
+                plt.suptitle(f'Reconstruction of Spectra {spectra_num} (lineindex_cln=={subclass[spectra_num]})', fontsize=20)
+
+        else:
+            plt.plot(wavelengths, X_norm_zeros[spectra_num], '-', c='gray', label='Original')
+            plt.plot(wavelengths, pca.mean_ + np.dot(coeff[:components], pca.components_[:components]), '-k', label='Reconstruction')     
+            plt.ylabel('Flux', fontsize=20)
+            plt.xlabel(r'${\rm wavelength\ (\AA)}$', fontsize=20)
+            plt.title(f'Reconstruction of Spectra {spectra_num} (lineindex_cln=={subclass[spectra_num]})', fontsize=20)
+            plt.legend(fontsize=20)
         plt.show()
-    return pca.mean_ + np.dot(coeff[:components], pca.components_[:components])# %% Plot a random spectra
+ 
+    return pca.mean_ + np.dot(coeff[:components], pca.components_[:components])
+# %% Plot a random spectra
 spectra_num = np.random.randint(0, len(X))
 reconstruct_spectra(spectra_num)
 
 # %% Find chi-squared values of all spectra
-def chisquare_no_zeros(reconstruction, original):
-    original_no_zeros = original[original != 0.0]
-    chi = chisquare(reconstruction[original!=0.0], original_no_zeros)
+def reduced_chi(expected, observed, noise):
+    '''
+    Computes the reduced chi-squared values for observed and expected datasets.
+
+    Input:
+    expected : Array of expected values
+    observed : Array of observed values
+    noise : Array of noise values for observed values
+
+    Returns: An array of chi-squared values.
+    '''
+    return sum(((observed-expected)/noise) ** 2)
+
+def chisquare_nonan(reconstruction, original, noise):
+    '''
+    Performs a reduced chi-squared test, omitting the NaN values in the noise
+    
+    Input:
+    reconstruction: Array of reconstructed spectrum
+    original: Array of original spectrum
+    noise: Array of noise values for observed values
+    
+    Returns: Chi-squared value
+    '''
+    chi = reduced_chi(reconstruction[~np.isnan(noise)], original[~np.isnan(noise)], noise[~np.isnan(noise)])
     return chi
 
-def chisquare_all(original_arr):
+def chisquare_all(original_arr,noise_arr):
+    '''
+    Performs a reduced chi-squared test, omitting the zero values in the reconstruction, for all spectra in a specified array.
+    
+    Input:
+    original_arr: Multi-dimensional array of spectra
+    noise_arr: Multi-dimensional array of noise values for spectra
+    
+    Returns:
+    chi_arr: Array of chi-squared test statistics
+    '''
     chi_arr = np.array([])
-    p_arr = np.array([])
     for i in range(len(original_arr)):
         reconstruction = reconstruct_spectra(i,plot_fig=False)
-        chi_test,chi_p = chisquare_no_zeros(reconstruction, original_arr[i])
+        chi_test= chisquare_nonan(reconstruction, original_arr[i], noise_arr[i])
         chi_arr = np.append(chi_arr, chi_test)
-        p_arr = np.append(p_arr, chi_p)
-    return chi_arr, p_arr
-
-chi_arr, _ = chisquare_all(X_norm_zeros)
+    return chi_arr
+chi_arr = chisquare_all(X_norm_zeros, spec_err_norm)
 
 # %% Plot chi-squared values
 # Code adapted from https://towardsdatascience.com/advanced-histogram-using-python-bceae288e715
