@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 from sklearn import preprocessing
 from sklearn.decomposition import PCA
 from numpy.linalg import inv
+from numpy.linalg import slogdet
 import pandas as pd
 #%% Load full data set
 data = np.load('spec4000error.npz')
@@ -115,7 +116,37 @@ C_inv_n = sig_inv_n -  np.matmul(sig_inv_n,np.matmul(W,np.matmul(M_inv,W_T)))
 n= 0
 l_n = -500*np.log(2*np.pi) - 0.5*np.log(np.abs(C_n[n])) - 0.5*np.transpose(X[n]-mu)*C_inv_n[n]*(X[n]-mu)
 
-#%% From meeting notes
+#%% Fill spectra minus mean to be filled with zeros at nan values
+
+X_mu = X_normal - mu
+df2 = pd.DataFrame(X_mu)
+df2_zeros = df2.fillna(0.)
+X_mu_zeros = df2_zeros.to_numpy()
+
+#%%
+n = 2001
+
+sigma_n = np.diagflat(spec_err_norm_inf[n]**2)
+sigma_n_nan = np.diagflat(spec_err_norm[n]**2)
+sig_inv_n = inv(sigma_n)
+    
+W = pca.components_
+W_T = np.transpose(W)
+M = np.identity(np.shape(W)[0]) + np.matmul(W_T,np.matmul(sig_inv_n,W)) 
+
+M_inv = inv(M)
+
+C_n = np.matmul(W,W_T) + sigma_n
+C_inv_n = sig_inv_n -  np.matmul(sig_inv_n,np.matmul(W,np.matmul(M_inv,np.matmul(W_T,sig_inv_n))))
+   
+sign_M, logdet_M = slogdet(M)
+logdet_sig = np.nansum(np.log(spec_err_norm[n]**2))
+    
+l_n = -500*np.log(2*np.pi) - 0.5*(sign_M*logdet_M + logdet_sig) - 0.5*np.matmul(np.array([(X_mu_zeros[n])]),np.matmul(C_inv_n,(X_mu_zeros[n])))[0]
+    
+print(l_n)
+
+#%% From identities
 
 def Bayesian(n):
     sigma_n = np.diagflat(spec_err_norm_inf[n]**2)
@@ -124,50 +155,16 @@ def Bayesian(n):
     
     W = pca.components_
     W_T = np.transpose(W)
-    M = np.identity(1000) + np.matmul(W_T,W) 
+    M = np.identity(np.shape(W)[0]) + np.matmul(W_T,np.matmul(sig_inv_n,W)) 
     M_inv = inv(M)
     
     C_n = np.matmul(W,W_T) + sigma_n
-    C_inv_n = sig_inv_n -  np.matmul(sig_inv_n,np.matmul(W,np.matmul(M_inv,W_T)))
+    C_inv_n = sig_inv_n -  np.matmul(sig_inv_n,np.matmul(W,np.matmul(M_inv,np.matmul(W_T,sig_inv_n))))
     
-    l_n = -500*np.log(2*np.pi) - 0.5*np.log(np.abs(C_n[n])) - 0.5*np.transpose(X[n]-mu)*C_inv_n[n]*(X[n]-mu)
+    sign_M, logdet_M = slogdet(M)
+    logdet_sig = np.nansum(np.log(spec_err_norm[n]**2))
     
-    
+    l_n = -500*np.log(2*np.pi) - 0.5*(sign_M*logdet_M + logdet_sig) - 0.5*np.matmul(np.array([(X_mu_zeros[n])]),np.matmul(C_inv_n,(X_mu_zeros[n])))[0]
+
     return l_n
 
-#%% Direct from Bishop
-def Bayesian2(n):
-    sigma_n = np.diagflat(spec_err_norm_inf[n]**2)
-    sigma_n_nan = np.diagflat(spec_err_norm[n]**2)
-    sig_inv_n = inv(sigma_n)
-    sig_inv_flat = np.diag(sig_inv_n)
-    
-    
-    W = pca.components_
-    W_T = np.transpose(W)
-    M = np.matmul(W_T,W) + sigma_n 
-    M_inv = inv(M)
-    
-    C_n = np.matmul(W,W_T) + sigma_n
-    C_inv_n = sig_inv_n -  np.matmul(sig_inv_flat,np.matmul(W,np.matmul(M_inv,W_T)))
-    
-    l_n = -500*np.log(2*np.pi) - 0.5*np.log(np.abs(C_n[n])) - 0.5*np.transpose(X[n]-mu)*C_inv_n[n]*(X[n]-mu)
-    
-    
-    return l_n
-
-#%%
-b1 = Bayesian(0)
-b2 = Bayesian2(0)
-
-#%%
-l_n = []
-
-for n in range(5):
-    l_n.append(Bayesian(n))
-
-
-
-#%%
-n= 500
-l_n = -500*np.log(2*np.pi) - 0.5*np.log(np.abs(C_n[n])) - 0.5*np.transpose(X[n]-mu)*C_inv_n[n]*(X[n]-mu)
