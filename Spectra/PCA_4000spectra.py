@@ -141,7 +141,7 @@ for i in range(4):
 plt.xlabel('wavelength (Angstroms)')
 plt.ylabel('scaled flux + offset')
 plt.title('Mean Spectrum and Eigen-spectra')
-
+plt.show()
 #%% Plot variance explained by each component
 var = pca.explained_variance_ratio_
 cum_var = np.cumsum(var)
