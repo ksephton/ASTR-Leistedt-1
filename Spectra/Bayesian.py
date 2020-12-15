@@ -12,6 +12,8 @@ from sklearn.decomposition import PCA
 from numpy.linalg import inv
 from numpy.linalg import slogdet
 import pandas as pd
+from scipy.optimize import minimize
+
 #%% Load full data set
 data = np.load('spec4000error.npz')
 
@@ -91,31 +93,6 @@ plt.show()
 pca = PCA(n_components=1000)
 X_red = pca.fit_transform(X_norm_zeros)
 
-#%%
-W = pca.components_
-W_T = np.transpose(W)
-
-#%%
-
-#sigma_n = np.diagflat(spec_err_norm_inf[0]**2)
-#sigma_n_nan = np.diagflat(spec_err_norm[0]**2)
-
-sigma_n = np.diagflat(spec_err_norm_inf[n]**2)
-sigma_n_nan = np.diagflat(spec_err_norm[n]**2)
-
-sig_inv_n = inv(sigma_n)
-
-M = np.identity(1000) + np.matmul(W_T,W) 
-M_inv = inv(M)
-
-#%%
-C_n = np.matmul(W,W_T) + sigma_n_nan
-C_inv_n = sig_inv_n -  np.matmul(sig_inv_n,np.matmul(W,np.matmul(M_inv,W_T)))
-
-#%%
-n= 0
-l_n = -500*np.log(2*np.pi) - 0.5*np.log(np.abs(C_n[n])) - 0.5*np.transpose(X[n]-mu)*C_inv_n[n]*(X[n]-mu)
-
 #%% Fill spectra minus mean to be filled with zeros at nan values
 
 X_mu = X_normal - mu
@@ -140,9 +117,9 @@ C_n = np.matmul(W,W_T) + sigma_n
 C_inv_n = sig_inv_n -  np.matmul(sig_inv_n,np.matmul(W,np.matmul(M_inv,np.matmul(W_T,sig_inv_n))))
    
 sign_M, logdet_M = slogdet(M)
-logdet_sig = np.nansum(np.log(spec_err_norm[n]**2))
+logdet_sig = np.nansum(np.log(spec_err_norm[n]**(-2)))
     
-l_n = -500*np.log(2*np.pi) - 0.5*(sign_M*logdet_M + logdet_sig) - 0.5*np.matmul(np.array([(X_mu_zeros[n])]),np.matmul(C_inv_n,(X_mu_zeros[n])))[0]
+l_n = -500*np.log(2*np.pi) - 0.5*(sign_M*logdet_M - logdet_sig) - 0.5*np.matmul(np.array([(X_mu_zeros[n])]),np.matmul(C_inv_n,(X_mu_zeros[n])))[0]
     
 print(l_n)
 
@@ -162,9 +139,93 @@ def Bayesian(n):
     C_inv_n = sig_inv_n -  np.matmul(sig_inv_n,np.matmul(W,np.matmul(M_inv,np.matmul(W_T,sig_inv_n))))
     
     sign_M, logdet_M = slogdet(M)
-    logdet_sig = np.nansum(np.log(spec_err_norm[n]**2))
+    logdet_sig = np.nansum(np.log(spec_err_norm[n]**(-2)))
     
-    l_n = -500*np.log(2*np.pi) - 0.5*(sign_M*logdet_M + logdet_sig) - 0.5*np.matmul(np.array([(X_mu_zeros[n])]),np.matmul(C_inv_n,(X_mu_zeros[n])))[0]
+    l_n = -500*np.log(2*np.pi) - 0.5*(sign_M*logdet_M - logdet_sig) - 0.5*np.matmul(np.array([(X_mu_zeros[n])]),np.matmul(C_inv_n,(X_mu_zeros[n])))[0]
 
     return l_n
 
+#%% Attempt to use matrices
+a = np.array([1,2,3])
+b = np.array([4,5,6])
+both = np.array([a,b])
+
+#ind = np.arange(0,np.shape(both)[0])
+ind = np.array([0,1])
+#ind = np.ones(np.shape(both)[0],dtype=bool)
+#ind = [True,True]
+#ind = [0,1]
+
+both_diag = np.zeros([2,3,3])
+both_flat = np.zeros([2,3**2])
+
+both_flatdiag = np.diagflat(both)
+
+
+n = np.arange(0,9,3)
+
+both_diag[0] = np.transpose(both_flatdiag[n[0]:n[1]])[n[0]:n[1]]     #works but cant use a list of indices
+both_diag[1] = np.transpose(both_flatdiag[n[1]:n[2]])[n[1]:n[2]]
+
+#both_flat[ind] = np.diagflat(both[ind]).flatten()
+
+#both_diag[0] = np.diagflat(both[0])       #works but cant use a list of indices
+#both_diag[1] = np.diagflat(both[1])
+
+#i = np.array([True,True],dtype=bool)
+#both_diag[i] = np.diagflat(both[i])
+
+#%% With for loop because matrices wouldn't work 
+a = np.array([1,2,3])
+b = np.array([4,5,6])
+both = np.array([a,b])
+
+both_diag = np.zeros([2,3,3])
+
+for i in range(2):
+    both_diag[i] = np.diagflat(both[i])
+    
+
+
+#%% For all n at once (matrices)
+
+
+W_0 = pca.components_
+
+def objective_function(W):
+    n = 2
+    W_T = np.transpose(W)
+
+    spec_err1 = spec_err_norm_inf[:n]
+    spec_err1_nan = spec_err_norm[:n]
+    
+    sig_diag = np.zeros([np.shape(spec_err1)[0],np.shape(spec_err1)[1],np.shape(spec_err1)[1]])
+    sig_inv = np.zeros([np.shape(spec_err1)[0],np.shape(spec_err1)[1],np.shape(spec_err1)[1]])
+    M_mul = np.zeros([np.shape(spec_err1)[0],np.shape(W)[0],np.shape(W)[0]])
+    M_mul_inv = np.zeros([np.shape(spec_err1)[0],np.shape(W)[0],np.shape(W)[0]])
+    C_inv = np.zeros([np.shape(spec_err1)[0],np.shape(spec_err1)[1],np.shape(spec_err1)[1]])
+    sign_mul_M = np.zeros([np.shape(spec_err1)[0]])
+    logdet_mul_M = np.zeros([np.shape(spec_err1)[0]])
+    logdet_mul_sig = np.zeros([np.shape(spec_err1)[0]])
+    l_n = np.zeros([np.shape(spec_err1)[0]])
+    
+    for i in range(np.shape(spec_err1)[0]):
+        sig_diag[i] = np.diagflat(spec_err1[i]**2)
+        sig_inv[i] = inv(np.diagflat(spec_err1[i]**2))
+        M_mul[i] = np.identity(np.shape(W)[0]) + np.matmul(W_T,np.matmul(sig_inv[i],W)) 
+        M_mul_inv[i] = inv(np.identity(np.shape(W)[0]) + np.matmul(W_T,np.matmul(sig_inv[i],W)))
+        C_inv[i] = sig_inv[i] -  np.matmul(sig_inv[i],np.matmul(W,np.matmul(M_mul_inv[i],np.matmul(W_T,sig_inv[i]))))
+        sign_mul_M[i], logdet_mul_M[i] = slogdet(M_mul[i])
+        logdet_mul_sig[i] = np.nansum(np.log(spec_err1_nan[i]**(-2)))
+        l_n[i] = -500*np.log(2*np.pi) - 0.5*(sign_mul_M[i]*logdet_mul_M[i] - logdet_mul_sig[i]) - 0.5*np.matmul(np.array([(X_mu_zeros[i])]),np.matmul(C_inv[i],(X_mu_zeros[i])))[0]
+    
+    ln = np.nansum(l_n)
+    
+    return -ln
+
+#%% Optimise for W by maximising ln
+
+res = minimize(
+    objective_function,
+    x0=W_0,
+)
