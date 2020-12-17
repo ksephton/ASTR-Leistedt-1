@@ -43,9 +43,9 @@ X_nonan = X.copy()
 zero_ind = X == 0.
 X[zero_ind] = np.NaN
 
-#%% Set all zero flux errors to NaN
+#%% Set all zero and negative flux errors to NaN
 
-zero_err_ind = spec_err == 0.
+zero_err_ind = spec_err <= 0.
 spec_err[zero_err_ind] = np.NaN
 
 #%% Normalise spectrum
@@ -65,6 +65,15 @@ X_normal[zero_norm_ind] = np.NaN
 spec_err_T = np.transpose(spec_err)
 spec_err_norm_T = np.divide(spec_err_T,norm)
 spec_err_norm = np.transpose(spec_err_norm_T)
+
+# %% Cap errors at a lower limit of 1e-5 times the flux
+cap_counter = 0
+for spectra in range(len(spec_err_norm)):
+    for pixel in range(len(spec_err_norm[spectra])):
+        if np.isnan(spec_err_norm[spectra][pixel]) == False and spec_err_norm[spectra][pixel] < 1e-5 * X_normal[spectra][pixel]:
+            spec_err_norm[spectra][pixel] = 1e-5 * X_normal[spectra][pixel]
+            cap_counter += 1
+print("Number of capped errors", cap_counter)
 
 #%% Spectra errors with infs instead of nans
 df = pd.DataFrame(spec_err_norm)
