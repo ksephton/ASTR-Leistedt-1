@@ -66,6 +66,7 @@ for spectra in range(len(spec_err_norm)):
             spec_err_norm[spectra][pixel] = 1e-5 * X_normal[spectra][pixel]
             cap_counter += 1
 print("Number of capped errors", cap_counter)
+
 #%% Plot mean spectrum
 mu = np.nanmean(X_normal, axis=0)
 std = np.nanstd(X_normal, axis=0)
@@ -332,5 +333,58 @@ for i in range(4):
     ax.set_ylabel('Counts',fontsize=20)
     ax.set_title(f'{subclass_names[i]}({len(chi_arr[subclass==i+2])}/{len(subclass)})', fontsize=20)
 plt.subplots_adjust(hspace=.5, wspace=.2)
-plt.show()   
-    
+plt.show()
+
+# %% Find mean and variance of residuals for each pixel in spectrum
+def residuals_all(original, reconstruction, noise):
+    '''
+    Find residual value for each pixel in all spectra. Input arrays must be multi-dimensional and of the same dimensions.
+
+    Parameters
+    ----------
+    original : Array of original spectra
+    reconstruction : Array of reconstructed spectra.
+    noise : Array of noise for each pixel for all spectra
+
+    Returns
+    -------
+    Array of residual values
+
+    '''
+    residuals = np.zeros(original.shape)
+    for spectra in range(original.shape[0]):
+        for pixel in range(original.shape[1]):
+            if np.isnan(noise[spectra][pixel]) == True:
+                residuals[spectra][pixel] = np.NaN
+            else:
+                residuals[spectra][pixel] = abs(reconstruction[spectra][pixel]-original[spectra][pixel])/noise[spectra][pixel]
+                
+    return residuals
+
+residuals_arr = residuals_all(X_norm_zeros,reconstruction_arr,spec_err_norm)
+chi_means = np.array([])
+chi_vars = np.array([])
+num_validpix = np.array([])
+for i in range(residuals_arr.shape[1]):
+    chi_means = np.append(chi_means, np.nanmean(residuals_arr[:,i]))
+    chi_vars = np.append(chi_vars, np.nanvar(residuals_arr[:,i]))
+    num_validpix = np.append(num_validpix, len(residuals_arr[:,i][~np.isnan(residuals_arr[:,i])]))
+# %% Plot mean and variance of residuals, and number of valid pixels used
+end_num = 200
+fig, (ax1, ax2, ax3) = plt.subplots(3,1, sharex=True, figsize=(20,10))
+
+ax1.plot(chi_means,'x')
+ax1.minorticks_on()
+axins1 = fig.add_axes([0.29, 0.7, 0.595, 0.15])
+axins1.plot(range(end_num,len(chi_means)),chi_means[end_num:], 'x')
+ax1.set_ylabel("Mean of residuals")
+
+ax2.plot(chi_vars,'x')
+axins2 = fig.add_axes([0.29, 0.43, 0.595, 0.15])
+axins2.plot(range(end_num,len(chi_vars)),chi_vars[end_num:], 'x')
+ax2.set_ylabel("Variance of residuals")
+
+ax3.plot(num_validpix, 'x')
+ax3.set_ylabel("Number of valid (non-NaN) pixels ")
+ax3.set_xlabel("Pixel number in spectrum")
+plt.show()
