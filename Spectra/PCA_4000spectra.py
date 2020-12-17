@@ -35,9 +35,9 @@ X_nonan = X.copy()
 zero_ind = X == 0.
 X[zero_ind] = np.NaN
 
-#%% Set all zero flux errors to NaN
+#%% Set all zero and negative flux errors to NaN
 
-zero_err_ind = spec_err == 0.
+zero_err_ind = spec_err <= 0.
 spec_err[zero_err_ind] = np.NaN
 
 #%% Normalise spectrum
@@ -58,6 +58,14 @@ spec_err_T = np.transpose(spec_err)
 spec_err_norm_T = np.divide(spec_err_T,norm)
 spec_err_norm = np.transpose(spec_err_norm_T)
 
+# %% Cap errors at a lower limit of 1e-5 times the flux
+cap_counter = 0
+for spectra in range(len(spec_err_norm)):
+    for pixel in range(len(spec_err_norm[spectra])):
+        if np.isnan(spec_err_norm[spectra][pixel]) == False and spec_err_norm[spectra][pixel] < 1e-5 * X_normal[spectra][pixel]:
+            spec_err_norm[spectra][pixel] = 1e-5 * X_normal[spectra][pixel]
+            cap_counter += 1
+print("Number of capped errors", cap_counter)
 #%% Plot mean spectrum
 mu = np.nanmean(X_normal, axis=0)
 std = np.nanstd(X_normal, axis=0)
@@ -133,7 +141,7 @@ for i in range(4):
 plt.xlabel('wavelength (Angstroms)')
 plt.ylabel('scaled flux + offset')
 plt.title('Mean Spectrum and Eigen-spectra')
-
+plt.show()
 #%% Plot variance explained by each component
 var = pca.explained_variance_ratio_
 cum_var = np.cumsum(var)
@@ -243,44 +251,44 @@ def chisquare_all(original_arr,noise_arr):
     chi_arr: Array of chi-squared test statistics
     '''
     chi_arr = np.array([])
+    len_arr = np.array([])
     for i in range(len(original_arr)):
         reconstruction = reconstruct_spectra(i,plot_fig=False)
-        chi_test= chisquare_nonan(reconstruction, original_arr[i], noise_arr[i])
-        chi_arr = np.append(chi_arr, chi_test)
-    return chi_arr
-chi_arr = chisquare_all(X_norm_zeros, spec_err_norm)
+        chi_test = chisquare_nonan(reconstruction, original_arr[i], noise_arr[i])
+        chi_arr = np.append(chi_arr, chi_test/len(noise_arr[i][~np.isnan(noise_arr[i])])) # Divide chi-squared by number of pixels to scale values
+        len_arr = np.append(len_arr, len(noise_arr[i][~np.isnan(noise_arr[i])]))
+    return chi_arr, len_arr
+chi_arr, len_arr = chisquare_all(X_norm_zeros, spec_err_norm)
 
 # %% Plot chi-squared values
 # Code adapted from https://towardsdatascience.com/advanced-histogram-using-python-bceae288e715
 fig, ax = plt.subplots(figsize=(20,10))
-counts, bins, patches = ax.hist(chi_arr, bins=20)
+_, bins = np.histogram(chi_arr, bins=20)
 
-# Set the ticks to be at the edges of the bins.
-ax.set_xticks(bins.round(2))
+# Plot histogram on log scale
+logbins = np.logspace(np.log10(bins[0]),np.log10(bins[-1]),len(bins))
+logcounts, _, _ = ax.hist(chi_arr, bins=logbins)
+ax.set_xscale('log')
         
 # Calculate bar centre to display the count of data points and %
-bin_x_centers = 0.5 * np.diff(bins) + bins[:-1]
+bin_x_centers = 0.5 * np.diff(logbins) + logbins[:-1]
 bin_y_centers = ax.get_yticks()[1] * 0.25
 
 # Display the the count of data points and % for each bar in histogram
 for i in range(len(bins)-1):
-    bin_label = "{0:,}".format(counts[i]) + "\n({0:,.2f}%)".format((counts[i]/counts.sum())*100)
-    plt.text(bin_x_centers[i], bin_y_centers, bin_label, horizontalalignment='center')    
+    bin_label = "{0:,}".format(logcounts[i]) + "\n({0:,.2f}%)".format((logcounts[i]/logcounts.sum())*100)    
+    ax.text(bin_x_centers[i], bin_y_centers, bin_label, horizontalalignment='center')    
 
-ax.annotate('Counts\nPercentage', xy=(0.9,0.9), xycoords='axes fraction', 
-            horizontalalignment='center', fontsize=15, bbox=dict(boxstyle="round", fc="white"))
-plt.xlabel("$\chi^2$ test statistic", fontsize=20)
+plt.xlabel("$\chi^2/N_{pixels}$", fontsize=20)
 plt.ylabel('Counts',fontsize=20)
-
 plt.show()
-
 # %% Make an Astropy Table to store reconstruction data
 reconstruction_arr = np.zeros(X_norm_zeros.shape)
 for i in range(len(X_norm_zeros)):
     reconstruction_arr[i] = reconstruct_spectra(i, plot_fig=False)
 
-reconstruction_table = Table([np.arange(len(X_norm_zeros)), subclass, X_norm_zeros, reconstruction_arr, chi_arr],
-                                        names=('index', 'subclass', 'original', 'reconstruction', 'chi_squared_stat'),)
+reconstruction_table = Table([np.arange(len(X_norm_zeros)), subclass, X_norm_zeros, reconstruction_arr, chi_arr, len_arr],
+                                        names=('index', 'subclass', 'original', 'reconstruction', 'chi_squared_stat', 'N_pixels_chi'),)
 
 print(reconstruction_table[:5])
 # %% Filter reconstructions by subclass
@@ -308,65 +316,21 @@ _ = reconstruct_spectra(randnum)
 
 # %% Plot chi-squared value histograms for each subclass
 plt.figure(figsize=(20,10))
-ax1 = plt.subplot(2,2,1)
-counts, bins, patches = ax1.hist(chi_arr[subclass == 2], bins=20)
-# ax1.set_xticks(bins.round(2))
-# bin_x_centers = 0.5 * np.diff(bins) + bins[:-1]
-# bin_y_centers = ax1.get_yticks()[1] * 0.25
-# for i in range(len(bins)-1):
-#     bin_label = "{0:,}".format(counts[i]) + "\n({0:,.2f}%)".format((counts[i]/counts.sum())*100)
-#     ax1.text(bin_x_centers[i], bin_y_centers, bin_label, horizontalalignment='center')    
-
-# ax1.annotate('Counts\nPercentage', xy=(0.9,0.9), xycoords='axes fraction', 
-#             horizontalalignment='center', fontsize=15, bbox=dict(boxstyle="round", fc="white"))
-ax1.set_xlabel("$\chi^2$ test statistic", fontsize=20)
-ax1.set_ylabel('Counts',fontsize=20)
-ax1.set_title(f'2: Absorption galaxies ({len(chi_arr[subclass == 2])}/{len(subclass)})', fontsize=20)
-
-ax2 = plt.subplot(2,2,2)
-counts, bins, patches = ax2.hist(chi_arr[subclass == 3], bins=20)
-# ax2.set_xticks(bins.round(2))
-# bin_x_centers = 0.5 * np.diff(bins) + bins[:-1]
-# bin_y_centers = ax2.get_yticks()[1] * 0.25
-# for i in range(len(bins)-1):
-#     bin_label = "{0:,}".format(counts[i]) + "\n({0:,.2f}%)".format((counts[i]/counts.sum())*100)
-#     ax2.text(bin_x_centers[i], bin_y_centers, bin_label, horizontalalignment='center')    
-
-# ax2.annotate('Counts\nPercentage', xy=(0.9,0.9), xycoords='axes fraction', 
-#             horizontalalignment='center', fontsize=15, bbox=dict(boxstyle="round", fc="white"))
-ax2.set_xlabel("$\chi^2$ test statistic", fontsize=20)
-ax2.set_ylabel('Counts',fontsize=20)
-ax2.set_title(f'3: Normal galaxies ({len(chi_arr[subclass == 3])}/{len(subclass)})', fontsize=20)
-
-ax3 = plt.subplot(2,2,3)
-counts, bins, patches = ax3.hist(chi_arr[subclass == 4], bins=20)
-# ax3.set_xticks(bins.round(2))
-# bin_x_centers = 0.5 * np.diff(bins) + bins[:-1]
-# bin_y_centers = ax3.get_yticks()[1] * 0.25
-# for i in range(len(bins)-1):
-#     bin_label = "{0:,}".format(counts[i]) + "\n({0:,.2f}%)".format((counts[i]/counts.sum())*100)
-#     ax3.text(bin_x_centers[i], bin_y_centers, bin_label, horizontalalignment='center')    
-
-# ax3.annotate('Counts\nPercentage', xy=(0.9,0.9), xycoords='axes fraction', 
-#             horizontalalignment='center', fontsize=15, bbox=dict(boxstyle="round", fc="white"))
-ax3.set_xlabel("$\chi^2$ test statistic", fontsize=20)
-ax3.set_ylabel('Counts',fontsize=20)
-ax3.set_title(f'4: Emission line galaxies ({len(chi_arr[subclass == 4])}/{len(subclass)})', fontsize=20)
-
-ax4 = plt.subplot(2,2,4)
-counts, bins, patches = ax4.hist(chi_arr[subclass == 5], bins=20)
-# ax4.set_xticks(bins.round(2))
-# bin_x_centers = 0.5 * np.diff(bins) + bins[:-1]
-# bin_y_centers = ax4.get_yticks()[1] * 0.25
-# for i in range(len(bins)-1):
-#     bin_label = "{0:,}".format(counts[i]) + "\n({0:,.2f}%)".format((counts[i]/counts.sum())*100)
-#     ax4.text(bin_x_centers[i], bin_y_centers, bin_label, horizontalalignment='center')    
-
-# ax4.annotate('Counts\nPercentage', xy=(0.9,0.9), xycoords='axes fraction', 
-#             horizontalalignment='center', fontsize=15, bbox=dict(boxstyle="round", fc="white"))
-ax4.set_xlabel("$\chi^2$ test statistic", fontsize=20)
-ax4.set_ylabel('Counts',fontsize=20)
-ax4.set_title(f'5: Narrow-line QSO ({len(chi_arr[subclass == 5])}/{len(subclass)})', fontsize=20)
-
+subclass_names = ['2: Absorption galaxies', '3: Normal galaxies', '4: Emission line galaxies', '5: Narrow-line QSO']
+for i in range(4):
+    ax = plt.subplot(221 + i)
+    _, bins = np.histogram(chi_arr[subclass==i+2], bins=20)
+    logbins = np.logspace(np.log10(bins[0]),np.log10(bins[-1]),len(bins))
+    logcounts, _, _ = ax.hist(chi_arr, bins=logbins)
+    ax.set_xscale('log')
+    bin_x_centers = 0.5 * np.diff(logbins) + logbins[:-1]
+    bin_y_centers = ax.get_yticks()[1] * 0.25 
+#    for j in range(len(bins)-1):
+#        bin_label = "{0:,}".format(logcounts[j]) + "\n({0:,.2f}%)".format((logcounts[j]/logcounts.sum())*100)    
+#        ax.text(bin_x_centers[j], bin_y_centers, bin_label, horizontalalignment='center')
+    ax.set_xlabel("$\chi^2/N_{pixels}$", fontsize=20)
+    ax.set_ylabel('Counts',fontsize=20)
+    ax.set_title(f'{subclass_names[i]}({len(chi_arr[subclass==i+2])}/{len(subclass)})', fontsize=20)
 plt.subplots_adjust(hspace=.5, wspace=.2)
-plt.show()
+plt.show()   
+    
