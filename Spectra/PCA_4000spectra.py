@@ -371,20 +371,20 @@ for i in range(residuals_arr.shape[1]):
     num_validpix = np.append(num_validpix, len(residuals_arr[:,i][~np.isnan(residuals_arr[:,i])]))
 # %% Plot mean and variance of residuals, and number of valid pixels used
 end_num = 200
-fig, (ax1, ax2, ax3) = plt.subplots(3,1, sharex=True, figsize=(20,10))
+fig, (ax1, ax2, ax3) = plt.subplots(3,1, sharex=True, figsize=(20,20))
 
 ax1.plot(chi_means,'x')
 ax1.minorticks_on()
 axins1 = fig.add_axes([0.29, 0.7, 0.595, 0.15])
 axins1.plot(range(end_num,len(chi_means)),chi_means[end_num:], 'x')
-ax1.set_ylabel("Mean of residuals")
+ax1.set_ylabel("Mean of residuals", fontsize=20)
 
 ax2.plot(chi_vars,'x')
 axins2 = fig.add_axes([0.29, 0.43, 0.595, 0.15])
 axins2.plot(range(end_num,len(chi_vars)),chi_vars[end_num:], 'x')
-ax2.set_ylabel("Variance of residuals")
+ax2.set_ylabel("Variance of residuals", fontsize=20)
 
 ax3.plot(num_validpix, 'x')
-ax3.set_ylabel("Number of valid (non-NaN) pixels ")
-ax3.set_xlabel("Pixel number in spectrum")
+ax3.set_ylabel("Number of valid (non-NaN) pixels ", fontsize=20)
+ax3.set_xlabel("Pixel number in spectrum", fontsize=20)
 plt.show()
