@@ -189,7 +189,6 @@ for i in range(2):
 
 #%% For all n at once (matrices)
 
-
 W_0 = pca.components_
 
 def objective_function(W):
@@ -223,9 +222,41 @@ def objective_function(W):
     
     return -ln
 
+#%% Try decrease saved values and therefore RAM used
+W_0 = pca.components_
+
+def objective_function1(W,X_mu_zeros,n1,n2):
+    W_T = np.transpose(W)
+
+    spec_err1 = spec_err_norm_inf[n1:n2]
+    spec_err1_nan = spec_err_norm[n1:n2]
+    
+    l_n = np.zeros([np.shape(spec_err1)[0]])
+    
+    for i in range(np.shape(spec_err1)[0]):
+        sig_inv = np.diagflat(spec_err1[i]**(-2))
+        M = np.identity(np.shape(W)[0]) + np.matmul(W_T,np.matmul(sig_inv,W))
+    #    print(i)
+        M_inv = inv(np.identity(np.shape(W)[0]) + np.matmul(W_T,np.matmul(sig_inv,W)))
+
+        C_inv = sig_inv -  np.matmul(sig_inv,np.matmul(W,np.matmul(M_inv,np.matmul(W_T,sig_inv))))
+
+        sign_M, logdet_M = slogdet(M)
+
+        logdet_sig = np.nansum(np.log(spec_err1_nan[i]**(-2)))
+        l_n[i] = -500*np.log(2*np.pi) - 0.5*(sign_M*logdet_M - logdet_sig) - 0.5*np.matmul(np.array([(X_mu_zeros[i])]),np.matmul(C_inv,(X_mu_zeros[i])))[0]
+    
+    ln = np.nansum(l_n)
+    
+    return -ln
+
 #%% Optimise for W by maximising ln
+
+n1 = 0
+n2 = 100
 
 res = minimize(
     objective_function,
     x0=W_0,
+    args=(X_mu_zeros,n1,n2),
 )
