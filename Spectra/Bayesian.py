@@ -244,7 +244,7 @@ def objective_function1(W,X_mu_zeros,n1,n2):
         sign_M, logdet_M = slogdet(M)
 
         logdet_sig = np.nansum(np.log(spec_err1_nan[i]**(-2)))
-        l_n[i] = -500*np.log(2*np.pi) - 0.5*(sign_M*logdet_M - logdet_sig) - 0.5*np.matmul(np.array([(X_mu_zeros[i])]),np.matmul(C_inv,(X_mu_zeros[i])))[0]
+        l_n[i] = -np.shape(W)[0]*np.log(2*np.pi) - 0.5*(sign_M*logdet_M - logdet_sig) - 0.5*np.matmul(np.array([(X_mu_zeros[i])]),np.matmul(C_inv,(X_mu_zeros[i])))[0]
     
     ln = np.nansum(l_n)
     
@@ -256,7 +256,7 @@ n1 = 0
 n2 = 100
 
 res = minimize(
-    objective_function,
+    objective_function1,
     x0=W_0,
     args=(X_mu_zeros,n1,n2),
 )
